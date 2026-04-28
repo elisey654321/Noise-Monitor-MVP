@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import threading
 from typing import Callable
@@ -9,6 +10,8 @@ import sounddevice as sd
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from app.models import AppSettings, AudioDeviceInfo
+
+logger = logging.getLogger(__name__)
 
 
 class AudioMonitor(QObject):
@@ -24,12 +27,15 @@ class AudioMonitor(QObject):
         self._display_level = 0.0
         self._lock = threading.Lock()
         self._settings = AppSettings()
+        self._pending_status_message: str | None = None
+        self._last_status_message: str | None = None
 
     def list_input_devices(self) -> list[AudioDeviceInfo]:
         devices: list[AudioDeviceInfo] = []
         try:
             queried = sd.query_devices()
         except Exception as exc:
+            logger.exception("Не удалось получить список микрофонов")
             self.status_changed.emit(f"Не удалось получить список микрофонов: {exc}")
             return devices
 
@@ -66,6 +72,7 @@ class AudioMonitor(QObject):
             )
             self._stream.start()
         except Exception as exc:
+            logger.exception("Не удалось запустить микрофон")
             self._stream = None
             self.status_changed.emit(f"Не удалось запустить микрофон: {exc}")
             self.level_changed.emit(0.0)
@@ -73,7 +80,9 @@ class AudioMonitor(QObject):
 
         self._timer.start(self._settings.update_interval_ms)
         device_name = str(device_info.get("name", "микрофон"))
-        self.status_changed.emit(f"Слушаю: {device_name}")
+        listening_message = f"Слушаю: {device_name}"
+        self._last_status_message = listening_message
+        self.status_changed.emit(listening_message)
         return device_name
 
     def stop(self) -> None:
@@ -83,18 +92,25 @@ class AudioMonitor(QObject):
                 self._stream.stop()
                 self._stream.close()
             except Exception:
-                pass
+                logger.debug("Не удалось корректно остановить аудиопоток", exc_info=True)
             self._stream = None
 
         with self._lock:
             self._latest_level = 0.0
             self._display_level = 0.0
+            self._pending_status_message = None
+        self._last_status_message = None
         self.level_changed.emit(0.0)
 
     def _publish_level(self) -> None:
         with self._lock:
             level = self._display_level
+            status_message = self._pending_status_message
+            self._pending_status_message = None
         self.level_changed.emit(level)
+        if status_message and status_message != self._last_status_message:
+            self._last_status_message = status_message
+            self.status_changed.emit(status_message)
 
     def _resolve_device(self, preferred_name: str) -> dict[str, object]:
         devices = self.list_input_devices()
@@ -138,7 +154,7 @@ class AudioMonitor(QObject):
         status: sd.CallbackFlags,
     ) -> None:
         if status:
-            self.status_changed.emit(f"Проблема со звуком: {status}")
+            self._queue_status_message(f"Проблема со звуком: {status}")
 
         if frames <= 0:
             return
@@ -157,6 +173,11 @@ class AudioMonitor(QObject):
             )
             self._latest_level = smoothed
             self._display_level = smoothed
+
+    def _queue_status_message(self, message: str) -> None:
+        logger.warning(message)
+        with self._lock:
+            self._pending_status_message = message
 
     @staticmethod
     def _normalize_level(rms: float) -> float:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import deque
+import logging
+from logging.handlers import RotatingFileHandler
 import sys
 import time
 
@@ -8,7 +10,7 @@ from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
 from app.audio_monitor import AudioMonitor
-from app.config import ConfigStore
+from app.config import ConfigStore, default_log_path
 from app.icons import get_app_icon
 from app.models import AppSettings
 from app.overlay import NoiseLevelOverlay, OverlayState, ScreenOverlay
@@ -16,6 +18,22 @@ from app.single_instance import SingleInstanceGuard
 from app.settings_window import SettingsWindow
 from app.tray import AppTray
 from app.version import __version__
+
+
+def configure_logging() -> None:
+    log_path = default_log_path()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=512 * 1024,
+        backupCount=2,
+        encoding="utf-8",
+    )
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 
 
 class AppController(QObject):
@@ -207,6 +225,7 @@ class AppController(QObject):
 
 
 def main() -> int:
+    configure_logging()
     app = QApplication(sys.argv)
     app.setApplicationName(f"Noise Monitor MVP v{__version__}")
     app.setWindowIcon(get_app_icon())

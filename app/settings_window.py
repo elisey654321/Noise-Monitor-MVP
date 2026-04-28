@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QProgressBar,
     QSpinBox,
+    QSystemTrayIcon,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -33,6 +34,9 @@ class SettingsWindow(QWidget):
         super().__init__()
         self.setWindowTitle(f"Noise Monitor MVP v{__version__}")
         self.setMinimumWidth(420)
+        defaults = AppSettings()
+        self._smoothing_factor = defaults.smoothing_factor
+        self._update_interval_ms = defaults.update_interval_ms
 
         self.device_combo = QComboBox()
         self.refresh_button = QPushButton("Обновить список")
@@ -185,6 +189,8 @@ class SettingsWindow(QWidget):
 
     def set_settings(self, settings: AppSettings) -> None:
         normalized = settings.normalized()
+        self._smoothing_factor = normalized.smoothing_factor
+        self._update_interval_ms = normalized.update_interval_ms
         self.warning_spin.setValue(normalized.warning_threshold)
         self.critical_spin.setValue(normalized.critical_threshold)
         self.hold_spin.setValue(normalized.hold_ms)
@@ -235,6 +241,8 @@ class SettingsWindow(QWidget):
             show_level_meter=self.show_level_meter_checkbox.isChecked(),
             level_meter_position=str(self.level_meter_position_combo.currentData() or "bottom_right"),
             hold_ms=self.hold_spin.value(),
+            smoothing_factor=self._smoothing_factor,
+            update_interval_ms=self._update_interval_ms,
         ).normalized()
 
     def _sync_thresholds(self, warning_value: int) -> None:
@@ -253,6 +261,11 @@ class SettingsWindow(QWidget):
             QTimer.singleShot(0, self._hide_to_tray)
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            event.ignore()
+            self._hide_to_tray()
+            return
+
         event.accept()
         self.close_requested.emit()
 
