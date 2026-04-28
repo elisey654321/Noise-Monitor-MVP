@@ -15,6 +15,7 @@ from app.overlay import NoiseLevelOverlay, OverlayState, ScreenOverlay
 from app.single_instance import SingleInstanceGuard
 from app.settings_window import SettingsWindow
 from app.tray import AppTray
+from app.version import __version__
 
 
 class AppController(QObject):
@@ -207,7 +208,7 @@ class AppController(QObject):
 
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("Noise Monitor MVP")
+    app.setApplicationName(f"Noise Monitor MVP v{__version__}")
     app.setWindowIcon(get_app_icon())
     app.setQuitOnLastWindowClosed(False)
 

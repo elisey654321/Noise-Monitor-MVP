@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from app.models import AppSettings, AudioDeviceInfo
 from app.overlay import OverlayState
+from app.version import __version__
 
 
 class SettingsWindow(QWidget):
@@ -30,7 +31,7 @@ class SettingsWindow(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Noise Monitor MVP")
+        self.setWindowTitle(f"Noise Monitor MVP v{__version__}")
         self.setMinimumWidth(420)
 
         self.device_combo = QComboBox()
@@ -44,6 +45,7 @@ class SettingsWindow(QWidget):
         self.level_bar = QProgressBar()
         self.level_label = QLabel("0 / 100")
         self.status_label = QLabel("Готово к настройке")
+        self.version_label = QLabel(f"Версия: {__version__}")
         self.save_button = QPushButton("Сохранить")
         self.preview_warning_button = QPushButton("Проверить желтый")
         self.preview_critical_button = QPushButton("Проверить красный")
@@ -72,6 +74,7 @@ class SettingsWindow(QWidget):
         self.level_bar.setRange(0, 100)
         self.level_bar.setTextVisible(False)
         self.status_label.setWordWrap(True)
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.level_meter_position_combo.addItem("Слева сверху", "top_left")
         self.level_meter_position_combo.addItem("Справа сверху", "top_right")
         self.level_meter_position_combo.addItem("Слева снизу", "bottom_left")
@@ -132,6 +135,7 @@ class SettingsWindow(QWidget):
         preview_row.addWidget(self.preview_off_button)
 
         actions_row = QHBoxLayout()
+        actions_row.addWidget(self.version_label)
         actions_row.addStretch(1)
         actions_row.addWidget(self.save_button)
 
