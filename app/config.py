@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 
 from app.models import AppSettings
+
+logger = logging.getLogger(__name__)
 
 
 def default_config_path() -> Path:
@@ -12,6 +15,13 @@ def default_config_path() -> Path:
     if appdata:
         return Path(appdata) / "NoiseMonitorMVP" / "config.json"
     return Path.home() / ".noise-monitor-mvp.json"
+
+
+def default_log_path() -> Path:
+    appdata = os.getenv("APPDATA")
+    if appdata:
+        return Path(appdata) / "NoiseMonitorMVP" / "noise-monitor.log"
+    return Path.home() / ".noise-monitor-mvp.log"
 
 
 class ConfigStore:
@@ -25,6 +35,7 @@ class ConfigStore:
         try:
             payload = json.loads(self.config_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
+            logger.warning("Не удалось загрузить конфиг из %s", self.config_path, exc_info=True)
             return AppSettings()
 
         return AppSettings.from_dict(payload)

@@ -19,3 +19,6 @@ noise-monitor = "app.main:main"
 
 [tool.setuptools]
 packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["assets/*.ico"]
